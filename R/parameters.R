@@ -12,9 +12,8 @@ parameters <- function(x, ...) {
 #' @export
 #' @rdname parameters
 parameters.default <- function(x, ...) {
-  rlang::abort(
-    glue("`parameters` objects cannot be created from objects ",
-         "of class `{class(x)[1]}`.")
+  cli::cli_abort(
+    "{.cls parameters} objects cannot be created from {.obj_type_friendly {x}}."
   )
 }
 
@@ -32,7 +31,7 @@ parameters.param <- function(x, ...) {
 parameters.list <- function(x, ...) {
   elem_param <- purrr::map_lgl(x, inherits, "param")
   if (any(!elem_param)) {
-    rlang::abort("The objects should all be `param` objects.")
+    cli::cli_abort("The objects should all be {.cls param} objects.")
   }
   elem_name <- purrr::map_chr(x, ~ names(.x$label))
   elem_id <- names(x)
@@ -52,24 +51,6 @@ parameters.list <- function(x, ...) {
   )
 }
 
-chr_check <- function(x, ..., call = caller_env()) {
-  check_dots_empty()
-  cl <- match.call()
-  if (is.null(x)) {
-    rlang::abort(
-      glue::glue("Element `{cl$x}` should not be NULL."),
-      call = call
-    )
-  }
-  if (!is.character(x)) {
-    rlang::abort(
-      glue::glue("Element `{cl$x}` should be a character string."),
-      call = call
-    )
-  }
-  invisible(TRUE)
-}
-
 unique_check <- function(x, ..., call = caller_env()) {
   check_dots_empty()
   x2 <- x[!is.na(x)]
@@ -77,12 +58,14 @@ unique_check <- function(x, ..., call = caller_env()) {
   if (any(is_dup)) {
     dup_list <- x2[is_dup]
     cl <- match.call()
-    msg <- paste0(
-      "Element `", deparse(cl$x), "` should have unique values. Duplicates exist ",
-      "for item(s): ",
-      paste0("'", dup_list, "'", collapse = ", ")
+
+    cli::cli_abort(
+      c(
+        x = "Element {.field {deparse(cl$x)}} should have unique values.",
+        i = "Duplicates exist for {cli::qty(dup_list)} item{?s}: {dup_list}"
+      ),
+      call = call
     )
-    rlang::abort(msg, call = call)
   }
   invisible(TRUE)
 }
@@ -91,52 +74,83 @@ param_or_na <- function(x) {
   inherits(x, "param") | all(is.na(x))
 }
 
+check_list_of_param <- function(x, ..., call = caller_env()) {
+  check_dots_empty()
+  if (!is.list(x)) {
+    cli::cli_abort(
+      "{.arg object} must be a list of {.cls param} objects.",
+      call = call
+    )
+  }
+  is_good_boi <- map_lgl(x, param_or_na)
+  if (any(!is_good_boi)) {
+    offenders <- which(!is_good_boi)
+
+    cli::cli_abort(
+      "{.arg object} elements in the following positions must be {.code NA} or a 
+      {.cls param} object: {offenders}.",
+      call = call
+    )
+  }
+}
+
 #' Construct a new parameter set object
 #'
 #' @param name,id,source,component,component_id Character strings with the same
 #' length.
 #' @param object A list of `param` objects or NA values.
+#' @inheritParams rlang::args_dots_empty
+#' @param call The call passed on to [cli::cli_abort()].
+#'
 #' @return A tibble that encapsulates the input vectors into a tibble with an
 #' additional class of "parameters".
 #' @keywords internal
 #' @export
-parameters_constr <-
-  function(name, id, source, component, component_id, object) {
-    chr_check(name)
-    chr_check(id)
-    chr_check(source)
-    chr_check(component)
-    chr_check(component_id)
-    unique_check(id)
-    if (is.null(object)) {
-      rlang::abort("Element `object` should not be NULL.")
-    }
-    if (!is.list(object)) {
-      rlang::abort("`object` should be a list.")
-    }
-    is_good_boi <- map_lgl(object, param_or_na)
-    if (any(!is_good_boi)) {
-      rlang::abort(
-        paste0(
-          "`object` values in the following positions should be NA or a ",
-          "`param` object:",
-          paste0(which(!is_good_boi), collapse = ", ")
-        )
-      )
-    }
-    res <-
-      tibble(
+parameters_constr <- function(name,
+                              id,
+                              source,
+                              component,
+                              component_id,
+                              object,
+                              ...,
+                              call = caller_env()) {
+  check_dots_empty()
+
+  check_character(name, call = call)
+  check_character(id, call = call)
+  unique_check(id, call = call)
+  check_character(source, call = call)
+  check_character(component, call = call)
+  check_character(component_id, call = call)
+  check_list_of_param(object, call = call)
+
+  n_elements <- map_int(
+    list(name, id, source, component, component_id, object),
+    length
+    )
+  n_elements_unique <- unique(n_elements)
+  if (length(n_elements_unique) > 1) {
+    cli::cli_abort(
+      "All inputs must contain contain the same number of elements.",
+      call = call
+    )
+  }
+
+  res <-
+    new_tibble(
+      list(
         name = name,
         id = id,
         source = source,
         component = component,
         component_id = component_id,
         object = object
-      )
-    class(res) <- c("parameters", class(res))
-    res
-  }
-
+      ),
+      nrow = length(name)
+    )
+  class(res) <- c("parameters", class(res))
+  res
+}
 
 unk_check <- function(x) {
   if (all(is.na(x))) {
@@ -151,38 +165,37 @@ unk_check <- function(x) {
 print.parameters <- function(x, ...) {
   x <- tibble::as_tibble(x)
 
-  cat("Collection of", nrow(x), "parameters for tuning\n\n")
+  cli::cli_par()
+  cli::cli_text("Collection of {nrow(x)} parameters for tuning")
+  cli::cli_end()
 
   print_x <- x %>% dplyr::select(identifier = id, type = name, object)
   print_x$object <-
     purrr::map_chr(
       print_x$object,
-      ~if (all(is.na(.x))) {"missing"} else {pillar::type_sum(.x)}
+      ~ if (all(is.na(.x))) {
+        "missing"
+      } else {
+        pillar::type_sum(.x)
+      }
     )
-
-  print.data.frame(print_x, row.names = FALSE)
-  cat("\n")
+ 
+  cli::cli_par()
+  cli::cli_verbatim(
+    utils::capture.output(print.data.frame(print_x, row.names = FALSE))
+  )
+  cli::cli_end()
 
   null_obj <- map_lgl(x$object, ~ all(is.na(.x)))
 
   if (any(null_obj)) {
-    needs_param <- print_x$identifier[null_obj]
-
-    last_sep <- if (length(needs_param) == 2) {"` and `"} else {"`, and `"}
-
-    param_descs <- paste0(
-      "`",
-      glue::glue_collapse(print_x$identifier[null_obj], sep = "`, `", last = last_sep),
-      "`"
+     needs_param <- print_x$identifier[null_obj]
+    cli::cli_par()
+    cli::cli_text(
+      "The parameter{?s} {.var {needs_param}} {?needs a/need} {.cls param}
+      {?object/objects}."
     )
-
-    plural <- length(needs_param) != 1
-
-    rlang::inform(
-      glue::glue("The parameter{if (plural) 's' else ''} {param_descs} ",
-                 "{if (plural) {'need `param` objects'} else {'needs a `param` object'}}. ",
-                 "\nSee `vignette('dials')` to learn more.")
-    )
+    cli::cli_end()
   }
 
   other_obj <-
@@ -197,23 +210,29 @@ print.parameters <- function(x, ...) {
     # There's a more elegant way to do this, I'm sure:
     mod_obj <- as_tibble(other_obj) %>% dplyr::filter(source == "model_spec" & not_final)
     if (nrow(mod_obj) > 0) {
-      cat("Model parameters needing finalization:\n")
-      cat(mod_obj$note, sep = "")
-      cat("\n")
+      cli::cli_par()
+      cli::cli_text("Model parameters needing finalization:")
+      cli::cli_text("{mod_obj$note}")
+      cli::cli_end()
     }
     rec_obj <- as_tibble(other_obj) %>% dplyr::filter(source == "recipe" & not_final)
     if (nrow(rec_obj) > 0) {
-      cat("Recipe parameters needing finalization:\n")
-      cat(rec_obj$note, sep = "")
-      cat("\n")
+      cli::cli_par()
+      cli::cli_text("Recipe parameters needing finalization:")
+      cli::cli_text("{rec_obj$note}")
+      cli::cli_end()
     }
     lst_obj <- as_tibble(other_obj) %>% dplyr::filter(source == "list" & not_final)
     if (nrow(lst_obj) > 0) {
-      cat("Parameters needing finalization:\n")
-      cat(lst_obj$note, sep = "")
-      cat("\n")
+      cli::cli_par()
+      cli::cli_text("Parameters needing finalization:")
+      cli::cli_text("{lst_obj$note}")
+      cli::cli_end()
     }
-    cat("See `?dials::finalize` or `?dials::update.parameters` for more information.\n\n")
+    cli::cli_text(
+      "See {.help dials::finalize} or {.help dials::update.parameters} for 
+      more information."
+    )
   }
 
   invisible(x)
@@ -238,32 +257,32 @@ print.parameters <- function(x, ...) {
 update.parameters <- function(object, ...) {
   args <- rlang::list2(...)
   if (length(args) == 0) {
-    rlang::abort("Please supply at least one parameter object.")
+    cli::cli_abort("Please supply at least one parameter object.")
   }
   nms <- names(args)
   if (length(nms) == 0 || any(nms == "")) {
-    rlang::abort("All arguments should be named.")
+    cli::cli_abort("All arguments should be named.")
   }
 
   in_set <- nms %in% object$id
   if (!all(in_set)) {
-    msg <- paste0("'", nms[!in_set], "'", collapse = ", ")
-    msg <- paste(
-      "At least one parameter does not match any id's in the set:",
-      msg
+    offenders <- nms[!in_set]
+
+    cli::cli_abort(
+      "At least one parameter does not match any id's in the set:
+      {offenders}."
     )
-    rlang::abort(msg)
   }
   not_param <- !purrr::map_lgl(args, inherits, "param")
   not_null <- !purrr::map_lgl(args, ~ all(is.na(.x)))
   bad_input <- not_param & not_null
   if (any(bad_input)) {
-    msg <- paste0("'", nms[bad_input], "'", collapse = ", ")
-    msg <- paste(
-      "At least one parameter is not a dials parameter object",
-      "or NA:", msg
+    offenders <- nms[bad_input]
+
+    cli::cli_abort(
+      "At least one parameter is not a dials parameter object or NA: \\
+      {offenders}."
     )
-    rlang::abort(msg)
   }
 
   for (p in nms) {

@@ -43,7 +43,7 @@ regularize_depth <- function(values = c(TRUE, FALSE)) {
 
 #' @export
 #' @rdname ranger_parameters
-significance_threshold <- function(range = c(-10, 0), trans = log10_trans()) {
+significance_threshold <- function(range = c(-10, 0), trans = transform_log10()) {
   new_quant_param(
     type = "double",
     range = range,
@@ -81,11 +81,11 @@ splitting_rule <- function(values = ranger_split_rules) {
 
 #' @rdname ranger_parameters
 #' @export
-ranger_class_rules <- c("variance", "extratrees", "maxstat", "beta")
+ranger_class_rules <- c("gini", "extratrees", "hellinger")
 
 #' @rdname ranger_parameters
 #' @export
-ranger_reg_rules <- c("gini", "extratrees", "hellinger")
+ranger_reg_rules <- c("variance", "extratrees", "maxstat", "beta")
 
 #' @rdname ranger_parameters
 #' @export

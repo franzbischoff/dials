@@ -1,9 +1,103 @@
 # dials (development version)
 
+* Added three new parameters for use in postprocessing in the tailor package (#357).
+     - `buffer()` sets the distance on either side of a classification threshold 
+       within which predictions are considered equivocal in 
+       `tailor::adjust_equivocal_zone()`.
+     - `lower_limit()` and `upper_limit()` sets the ranges for
+       numeric predictions in `tailor::adjust_numeric_range()`.
+
+* All messages, warnings and errors has been translated to use {cli} package (#311). 
+
+* For space-filling designs for $p$ parameters, there is a higher likelihood of finding a space-filling design for `1 < size <= p`. Also, single-point designs now default to a random grid (#363).
+
+## Breaking changes
+
+* The `grid_*()` functions now error instead of warn when provided with the wrong argument to control the grid size. So `grid_space_filling()`, `grid_random()`, `grid_max_entropy()`, and `grid_latin_hypercube()` now error if used with a `levels` argument and `grid_regular()` now errors if used with a `size` argument (#368).
+
+* When constructing integer-valued parameters with a range of two consecutive values the `inclusive` argument needs to be set to `c(TRUE, TRUE)` to leave at least two values to sample from (#373). 
+
+
+# dials 1.3.0
+
+## Improvements
+
+* The space-filling design functionality was expanded to include several new types of designs: Audze-Eglais, max/min L1, max/min L2, and uniform. These are all pre-computed designs accessed from the sfd package (#329).
+
+* A new function is used to access all of the space-filling designs called `grid_space_filling()` (#329).
+
+* Two new parameters, `activation_2()` and `hidden_units_2()`, for use with `brulee::brulee_mlp_two_layer()` (#339).
+
+## Deprecations
+
+* `grid_max_entropy()` and `grid_latin_hypercube()` are deprecated in favor of `grid_space_filling()` (#332).
+
+* `pull_dials_object()` has been removed (#344).
+
+* The `grid_*()` methods for `workflow` objects have been removed (#344).
+
+* The deprecation of the `default` argument to the constructors `new_quant_param()` and `new_qual_param()` has been escalated to an error (#344).
+
+
+# dials 1.2.1
+
+## New parameters
+
+* Added `initial_umap()` and `target_weight()` for `recipes::step_umap()` (#324).
+
+## Other changes
+
+* Improving styling of error messages by switching to cli (#315, #317, #321).
+
+* Update usage of tranformation functions from the scales package to their new names and require the corresponding version v1.3.0 (#323).
+
+
+# dials 1.2.0
+
+## New parameters
+
+* Added `trim_amount()` for `recipes::step_impute_mean()`.
+
+* Added `num_runs()` for `recipes::step_nnmf()` (#281).
+
+* Added `harmonic_frequency()` for `recipes::step_harmonic()` (#281).
+
+* Added `validation_set_prop()` for `embed::step_discretize_xgb()` (#280).
+
+## Other changes
+
+* Deprecation of `pull_dials_object()` has been escalated to an error. Please use `extract_parameter_dials()` instead (#265).
+  
+* The methods `grid_regular.workflow()`, `grid_random.workflow()`, `grid_max_entropy.workflow()`, and `grid_latin_hypercube.workflow()` have been deprecated (#302).
+
+* The constructor functions for single parameters, `new_quant_param()` and `new_qual_param()`, as well as for parameter sets, `parameters_constr()`, now have improved handling of the call shown in error messages (#291, #295).
+
+* The constructor for parameter sets, `parameters_constr()`, now checks that all inputs have the same length (#295).
+
+
+# dials 1.1.0
+
+## New parameters
+
+* Added learning rate scheduler parameters `rate_decay()`, `rate_initial()`, 
+  `rate_largest()`, `rate_reduction()`, `rate_schedule()`, `rate_step_size()`, 
+  and `rate_steps()` for the new [brulee functions](https://github.com/tidymodels/brulee/pull/56) (#253).
+
+* Added `num_clusters()` parameter for tidyclust models (#259).
+
+* Added `num_leaves()` parameter for lightbgm models (@joeycouse, #256).
+
+## Other changes
+
 * The `default` argument to the constructors `new_quant_param()` and 
   `new_qual_param()` is deprecated. `value_seq()` now uses the same logic to 
   generate a sequence of parameter values regardless of how long that sequence 
   is (#153, #229).
+
+* `prior_terminal_node_expo()` for Bayesian adaptive regression trees (BART) now
+  defaults to a range greater than 1 to limit explosive tree growth (#251).
+
+* The label for `spline_degree()` was improved. 
 
 
 # dials 1.0.0

@@ -23,8 +23,8 @@
 #' a warning will be thrown.
 #'
 #' @param trans A `trans` object from the \pkg{scales} package, such as
-#' [scales::log10_trans()] or [scales::reciprocal_trans()]. Create custom
-#' transforms with [scales::trans_new()].
+#' [scales::transform_log()] or [scales::transform_reciprocal()]. Create custom
+#' transforms with [scales::new_transform()].
 #'
 #' @param values A vector of possible values that is required when `type` is
 #' `"character"` or `"logical"` but optional otherwise. For quantitative
@@ -37,6 +37,10 @@
 #'
 #' @param finalize A function that can be used to set the data-specific
 #' values of a parameter (such as the `range`).
+#'
+#' @inheritParams rlang::args_dots_empty
+#'
+#' @param call The call passed on to [cli::cli_abort()].
 #'
 #' @return
 #'
@@ -79,31 +83,23 @@ new_quant_param <- function(type = c("double", "integer"),
                             trans = NULL,
                             values = NULL,
                             label = NULL,
-                            finalize = NULL) {
+                            finalize = NULL,
+                            ...,
+                            call = caller_env()) {
   if (lifecycle::is_present(default)) {
-    lifecycle::deprecate_warn(
-      when = "1.0.1",
+    lifecycle::deprecate_stop(
+      when = "1.1.0",
       what = "new_quant_param(default)"
     )
   }
 
-  type <- match.arg(type)
+  check_dots_empty()
 
-  if (!(type %in% c("double", "integer"))) {
-    rlang::abort("`type` should be either 'double' or 'integer'.")
-  }
+  type <- arg_match0(type, values = c("double", "integer"))
+
+  check_values_quant(values, call = call)
 
   if (!is.null(values)) {
-    if (!is.numeric(values)) {
-      rlang::abort("`values` must be numeric.")
-    }
-    if (anyNA(values)) {
-      rlang::abort("`values` can't be `NA`.")
-    }
-    if (length(values) == 0) {
-      rlang::abort("`values` can't be empty.")
-    }
-
     # fill in range if user didn't supply one
     if (is.null(range)) {
       range <- range(values)
@@ -116,41 +112,51 @@ new_quant_param <- function(type = c("double", "integer"),
   }
 
   if (is.null(range)) {
-    rlang::abort("`range` must be supplied if `values` is `NULL`.")
+    cli::cli_abort(
+      "{.arg range} must be supplied if {.arg values} is {.code NULL}.",
+      call = call
+    )
   }
   if (is.null(inclusive)) {
-    rlang::abort("`inclusive` must be supplied if `values` is `NULL`.")
+    cli::cli_abort(
+      "{.arg inclusive} must be supplied if {.arg values} is {.code NULL}.",
+      call = call
+    )
   }
 
-  range <- check_range(range, type, trans)
+  range <- check_range(range, type, trans, call = call)
 
   if (!is.list(range)) {
     range <- as.list(range)
   }
 
-  if (length(inclusive) != 2) {
-    rlang::abort("`inclusive` must have upper and lower values.")
-  }
-  if (any(is.na(inclusive))) {
-    rlang::abort("Boundary descriptors must be non-missing.")
-  }
-  if (!is.logical(inclusive)) {
-    rlang::abort("`inclusive` should be logical")
-  }
+  check_inclusive(inclusive, call = call)
 
-  if (!is.null(trans)) {
-    if (!is.trans(trans)) {
-      rlang::abort(
-        paste0(
-          "`trans` must be a 'trans' class object (or NULL). See ",
-          "`?scales::trans_new`."
+  if (type == "integer" && !any(is_unknown(range))) {
+    range_of_2_consecutive_values <- identical(range[[1]] + 1L, range[[2]])
+    if (range_of_2_consecutive_values) {
+      if (!all(inclusive)) {
+        cli::cli_abort(
+          "{.arg inclusive} must be {.code c(TRUE, TRUE)} when the {.arg range} 
+          only covers two consecutive values.",
+          call = call
         )
-      )
+      }
     }
   }
 
-  check_label(label)
-  check_finalize(finalize)
+  if (!is.null(trans) && !is.trans(trans)) {
+    cli::cli_abort(
+      c(
+        x = "{.arg trans} must be a {.cls trans} class object (or {.code NULL}).",
+        i = "See {.fn scales::trans_new}."
+      ),
+      call = call
+    )
+  }
+
+  check_label(label, call = call)
+  check_function(finalize, allow_null = TRUE, call = call)
 
   names(range) <- names(inclusive) <- c("lower", "upper")
   res <- list(
@@ -162,25 +168,20 @@ new_quant_param <- function(type = c("double", "integer"),
     finalize = finalize
   )
   class(res) <- c("quant_param", "param")
-  range_validate(res, range)
+  range_validate(res, range, call = call)
 
   if (!is.null(values)) {
-    ok_vals <- value_validate(res, values)
-    if (all(ok_vals)) {
-      res$values <- values
-    } else {
-      rlang::abort(
-        paste0(
-          "Some values are not valid: ",
-          glue_collapse(
-            values[!ok_vals],
-            sep = ", ",
-            last = " and ",
-            width = min(options()$width - 30, 10)
-          )
-        )
+    ok_vals <- value_validate(res, values, call = call)
+
+    if (!all(ok_vals)) {
+      offenders <- values[!ok_vals]
+      cli::cli_abort(
+        "Some values are not valid: {.val {offenders}}.",
+        call = call
       )
     }
+
+    res$values <- values
   }
 
   res
@@ -192,26 +193,25 @@ new_qual_param <- function(type = c("character", "logical"),
                            values,
                            default = deprecated(),
                            label = NULL,
-                           finalize = NULL) {
+                           finalize = NULL,
+                           ...,
+                           call = caller_env()) {
   if (lifecycle::is_present(default)) {
-    lifecycle::deprecate_warn(when = "1.0.1", what = "new_qual_param(default)")
+    lifecycle::deprecate_stop(
+      when = "1.1.0", 
+      what = "new_qual_param(default)"
+    )
   }
 
-  type <- match.arg(type)
+  type <- arg_match0(type, values = c("character", "logical"))
 
-  if (type == "logical") {
-    if (!is.logical(values)) {
-      rlang::abort("`values` must be logical")
-    }
-  }
-  if (type == "character") {
-    if (!is.character(values)) {
-      rlang::abort("`values` must be character")
-    }
-  }
-
-  check_label(label)
-  check_finalize(finalize)
+  switch(
+    type,
+    "logical" = check_logical(values, call = call),
+    "character" = check_character(values, call = call)
+  )
+  check_label(label, call = call)
+  check_function(finalize, allow_null = TRUE, call = call)
 
   res <- list(
     type = type,
@@ -229,31 +229,31 @@ new_qual_param <- function(type = c("character", "logical"),
 
 #' @export
 print.quant_param <- function(x, digits = 3, ...) {
-  cat_quant_param_header(x)
-  print_transformer(x)
-  cat_quant_param_range(x)
-  cat_quant_param_values(x)
+  print_quant_param_header(x)
+  print_quant_param_transformer(x)
+  print_quant_param_range(x)
+  print_quant_param_values(x)
   invisible(x)
 }
 
-cat_quant_param_header <- function(x) {
+print_quant_param_header <- function(x) {
   if (!is.null(x$label)) {
-    cat_line(x$label, " (quantitative)")
+    cli::cli_text("{x$label} (quantitative)")
   } else {
-    cat_line("Quantitative Parameter")
+    cli::cli_text("Quantitative Parameter")
   }
 }
 
-cat_quant_param_range <- function(x) {
+print_quant_param_range <- function(x) {
   label <- format_range_label(x, "Range")
 
   range <- map_chr(x$range, format_range_val)
   range <- format_range(x, range)
 
-  cat_line(label, range)
+  cli::cli_text("{label}{range}")
 }
 
-cat_quant_param_values <- function(x) {
+print_quant_param_values <- function(x) {
   values <- x$values
 
   if (is.null(values)) {
@@ -262,40 +262,32 @@ cat_quant_param_values <- function(x) {
 
   n_values <- length(values)
 
-  cat_line(glue("Values: {n_values}"))
+  cli::cli_text("Values: {n_values}")
 }
 
-print_transformer <- function(x) {
+print_quant_param_transformer <- function(x) {
   if (!is.null(x$trans)) {
-    print(eval(x$trans))
+    text <- utils::capture.output(eval(x$trans))
+    cli::cli_verbatim(text)
   }
-}
-
-cat_line <- function(...) {
-  cat(paste0(..., "\n", collapse = ""))
 }
 
 #' @export
 print.qual_param <- function(x, ...) {
   if (!is.null(x$label)) {
-    cat(x$label, " (qualitative)\n")
+    cli::cli_text("{x$label} (qualitative)")
   } else {
-    cat("Qualitative Parameter\n")
+    cli::cli_text("Qualitative Parameter")
   }
-  cat(length(x$values), "possible value include:\n")
+
+  n_values <- length(x$values)
+  cli::cli_text("{n_values} possible value{?s} include:")
   if (x$type == "character") {
     lvls <- paste0("'", x$values, "'")
   } else {
     lvls <- x$values
   }
-  cat(
-    glue_collapse(
-      lvls,
-      sep = ", ",
-      last = " and ",
-      width = options()$width
-    ),
-    "\n"
-  )
+  cli::cli_text("{lvls}")
+
   invisible(x)
 }

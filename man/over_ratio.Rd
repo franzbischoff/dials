@@ -15,17 +15,15 @@ largest possible values, respectively. If a transformation is specified,
 these values should be in the \emph{transformed units}.}
 
 \item{trans}{A \code{trans} object from the \code{scales} package, such as
-\code{scales::log10_trans()} or \code{scales::reciprocal_trans()}. If not provided,
+\code{scales::transform_log10()} or \code{scales::transform_reciprocal()}. If not provided,
 the default is used which matches the units used in \code{range}. If no
 transformation, \code{NULL}.}
 }
 \description{
 For up- and down-sampling methods, these parameters control how much data are
-added or removed from the training set.
-}
-\details{
-See \code{recipes::step_upsample()} and \code{recipes::step_downsample()} for the
-interpretation of these parameters.
+added or removed from the training set. Used in \code{themis::step_rose()},
+\code{themis::step_smotenc()}, \code{themis::step_bsmote()}, \code{themis::step_upsample()},
+\code{themis::step_downsample()}, and \code{themis::step_nearmiss()}.
 }
 \examples{
 under_ratio()

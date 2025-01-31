@@ -31,7 +31,7 @@ random_set <- grid_random(penalty(), mixture(), deg_free(), size = 5)
 random_set
 
 # A small space-filling design based on experimental design methods:
-design_set <- grid_max_entropy(penalty(), mixture(), deg_free(), size = 5)
+design_set <- grid_space_filling(penalty(), mixture(), deg_free(), size = 5)
 design_set
 }
 \seealso{
@@ -44,16 +44,16 @@ Useful links:
 
 }
 \author{
-\strong{Maintainer}: Hannah Frick \email{hannah@rstudio.com}
+\strong{Maintainer}: Hannah Frick \email{hannah@posit.co}
 
 Authors:
 \itemize{
-  \item Max Kuhn \email{max@rstudio.com}
+  \item Max Kuhn \email{max@posit.co}
 }
 
 Other contributors:
 \itemize{
-  \item RStudio [copyright holder, funder]
+  \item Posit Software, PBC [copyright holder, funder]
 }
 
 }

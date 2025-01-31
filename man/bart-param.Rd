@@ -11,7 +11,7 @@ These parameters are used for constructing Bayesian adaptive regression tree
 \usage{
 prior_terminal_node_coef(range = c(0, 1), trans = NULL)
 
-prior_terminal_node_expo(range = c(0, 3), trans = NULL)
+prior_terminal_node_expo(range = c(1, 3), trans = NULL)
 
 prior_outcome_range(range = c(0, 5), trans = NULL)
 }
@@ -21,7 +21,7 @@ largest possible values, respectively. If a transformation is specified,
 these values should be in the \emph{transformed units}.}
 
 \item{trans}{A \code{trans} object from the \code{scales} package, such as
-\code{scales::log10_trans()} or \code{scales::reciprocal_trans()}. If not provided,
+\code{scales::transform_log10()} or \code{scales::transform_reciprocal()}. If not provided,
 the default is used which matches the units used in \code{range}. If no
 transformation, \code{NULL}.}
 }

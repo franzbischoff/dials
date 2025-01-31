@@ -4,7 +4,7 @@
       get_p(1:10)
     Condition
       Error in `get_p()`:
-      ! `object` should be a 'param' object.
+      ! `object` must be a single parameter object, not an integer vector.
 
 ---
 
@@ -12,7 +12,7 @@
       get_p(1:10, 1:10)
     Condition
       Error in `get_p()`:
-      ! `object` should be a 'param' object.
+      ! `object` must be a single parameter object, not an integer vector.
 
 ---
 
@@ -28,7 +28,7 @@
       get_n(1:10)
     Condition
       Error in `get_n_frac()`:
-      ! `object` should be a 'param' object.
+      ! `object` must be a single parameter object, not an integer vector.
 
 ---
 
@@ -36,7 +36,7 @@
       get_n(1:10, 1:10)
     Condition
       Error in `get_n_frac()`:
-      ! `object` should be a 'param' object.
+      ! `object` must be a single parameter object, not an integer vector.
 
 ---
 
@@ -53,4 +53,22 @@
     Condition
       Error in `get_rbf_range()`:
       ! The matrix version of the initialization data is not numeric.
+
+# finalize interfaces
+
+    Code
+      finalize("threshold", mtcars)
+    Condition
+      Error in `finalize()`:
+      ! Cannot finalize a string.
+
+---
+
+    Code
+      finalize(list(TRUE, 3), mtcars)
+    Condition
+      Error in `map()`:
+      i In index: 2.
+      Caused by error in `.f()`:
+      ! Cannot finalize a number.
 

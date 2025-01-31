@@ -33,51 +33,21 @@ format_bounds <- function(bnds) {
   res
 }
 
-# From parsnip:::check_installs
-check_installs <- function(x) {
-  lib_inst <- rownames(installed.packages())
-  is_inst <- x %in% lib_inst
-  if (any(!is_inst)) {
-    rlang::abort(
-      paste0(
-        "Package(s) not installed: ",
-        paste0("'", x[!is_inst], "'", collapse = ", ")
-      )
-    )
-  }
-}
-
 # checking functions -----------------------------------------------------------
 
-check_label <- function(txt, ..., call = caller_env()) {
+check_label <- function(label, ..., call = caller_env()) {
   check_dots_empty()
-  if (is.null(txt)) {
-    rlang::abort(
-      "`label` should be a single named character string or NULL.",
+  
+  check_string(label, allow_null = TRUE, call = call)
+  
+  if (!is.null(label) && length(names(label)) != 1) {
+    cli::cli_abort(
+      "{.arg label} must be named.",
       call = call
     )
   }
-  if (!is.character(txt) || length(txt) > 1) {
-    rlang::abort(
-      "`label` should be a single named character string or NULL.",
-      call = call
-    )
-  }
-  if (length(names(txt)) != 1) {
-    rlang::abort(
-      "`label` should be a single named character string or NULL.",
-      call = call
-    )
-  }
-  invisible(txt)
-}
-
-check_finalize <- function(x, ..., call = caller_env()) {
-  check_dots_empty()
-  if (!is.null(x) & !is.function(x)) {
-    rlang::abort("`finalize` should be NULL or a function.", call = call)
-  }
-  invisible(x)
+  
+  invisible(NULL)
 }
 
 check_range <- function(x, type, trans, ..., call = caller_env()) {
@@ -100,21 +70,84 @@ check_range <- function(x, type, trans, ..., call = caller_env()) {
       whole <-
         purrr::map_lgl(x0[known], ~ abs(.x - round(.x)) < .Machine$double.eps^0.5)
       if (!all(whole)) {
-        msg <- paste(x0[known][!whole], collapse = ", ")
-        msg <- paste0(
-          "An integer is required for the range and these do not appear to be ",
-          "whole numbers: ", msg
+        offenders <- x0[known][!whole]
+        cli::cli_abort(
+          "An integer is required for the range and these do not appear to be
+          whole numbers: {offenders}.",
+          call = call
         )
-        rlang::abort(msg, call = call)
       }
 
       x0[known] <- as.integer(x0[known])
     } else {
-      msg <- paste0(
-        "Since `type = '", type, "'`, please use that data type for the range."
+      cli::cli_abort(
+        "Since {.code type = \"{type}\"}, please use that data type for the 
+        range.",
+        call = call
       )
-      rlang::abort(msg, call = call)
     }
   }
   invisible(x0)
+}
+
+check_values_quant <- function(x, ..., call = caller_env()) {
+  check_dots_empty()
+
+  if (is.null(x)) {
+    return(invisible(x))
+  }
+
+  if (!is.numeric(x)) {
+    cli::cli_abort("{.arg values} must be numeric.", call = call)
+  }
+  if (anyNA(x)) {
+    cli::cli_abort("{.arg values} can't be {.code NA}.", call = call)
+  }
+  if (length(x) == 0) {
+    cli::cli_abort("{.arg values} can't be empty.", call = call)
+  }
+
+  invisible(x)
+}
+
+check_inclusive <- function(x, ..., call = caller_env()) {
+  check_dots_empty()
+
+  if (any(is.na(x))) {
+    cli::cli_abort("{.arg inclusive} cannot contain missings.", call = call)
+  }
+
+  if (is_logical(x, n = 2)) {
+    return(invisible(NULL))
+  }
+
+  stop_input_type(
+    x,
+    "a logical vector of length 2", 
+    allow_na = FALSE,
+    allow_null = FALSE,
+    arg = "inclusive",
+    call = call
+  )
+}
+
+check_param <- function(x,
+                        ...,
+                        allow_na = FALSE,
+                        allow_null = FALSE,
+                        arg = caller_arg(x),
+                        call = caller_env()) {
+  if (!missing(x) && inherits(x, "param")) {
+    return(invisible(NULL))
+  }
+
+  stop_input_type(
+    x,
+    c("a single parameter object"),
+    ...,
+    allow_na = allow_na,
+    allow_null = allow_null,
+    arg = arg,
+    call = call
+  )
 }

@@ -14,7 +14,9 @@ new_quant_param(
   trans = NULL,
   values = NULL,
   label = NULL,
-  finalize = NULL
+  finalize = NULL,
+  ...,
+  call = caller_env()
 )
 
 new_qual_param(
@@ -22,7 +24,9 @@ new_qual_param(
   values,
   default = deprecated(),
   label = NULL,
-  finalize = NULL
+  finalize = NULL,
+  ...,
+  call = caller_env()
 )
 }
 \arguments{
@@ -45,8 +49,8 @@ No longer used. If a value is supplied, it will be ignored and
 a warning will be thrown.}
 
 \item{trans}{A \code{trans} object from the \pkg{scales} package, such as
-\code{\link[scales:log_trans]{scales::log10_trans()}} or \code{\link[scales:reciprocal_trans]{scales::reciprocal_trans()}}. Create custom
-transforms with \code{\link[scales:trans_new]{scales::trans_new()}}.}
+\code{\link[scales:transform_log]{scales::transform_log()}} or \code{\link[scales:transform_reciprocal]{scales::transform_reciprocal()}}. Create custom
+transforms with \code{\link[scales:new_transform]{scales::new_transform()}}.}
 
 \item{values}{A vector of possible values that is required when \code{type} is
 \code{"character"} or \code{"logical"} but optional otherwise. For quantitative
@@ -59,6 +63,10 @@ printing and plotting. The name should match the object name (e.g.
 
 \item{finalize}{A function that can be used to set the data-specific
 values of a parameter (such as the \code{range}).}
+
+\item{...}{These dots are for future extensions and must be empty.}
+
+\item{call}{The call passed on to \code{\link[cli:cli_abort]{cli::cli_abort()}}.}
 }
 \value{
 An object of class \code{"param"} with the primary class being either

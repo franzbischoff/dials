@@ -82,12 +82,15 @@ has_unknowns_val <- function(object) {
 
 check_for_unknowns <- function(x, ..., call = caller_env()) {
   check_dots_empty()
+  if (is.atomic(x)) {
+    return(invisible(TRUE))
+  }
   if (length(x) == 1 && is_unknown(x)) {
-    rlang::abort("Unknowns not allowed.", call = call)
+    cli::cli_abort("Unknowns not allowed.", call = call)
   }
   is_ukn <- map_lgl(x, is_unknown)
   if (any(is_ukn)) {
-    rlang::abort("Unknowns not allowed.", call = call)
+    cli::cli_abort("Unknowns not allowed.", call = call)
   }
   invisible(TRUE)
 }
